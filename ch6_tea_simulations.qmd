@@ -75,8 +75,12 @@ Call `summary(tea_data)` and look at the outputs. Call `head(tea_data)` to look 
 To do: Write basic tidyverse code to calculate the mean of each condition (hint: use `group_by` and `summarize`).
 
 ```{r}
+tea_data_highn <- make_tea_data(n_total = 48, delta = .75)
 
- 
+tea_data_highn_cond <- tea_data_highn %>%
+  group_by(condition) %>%
+  summarize(mean_rating = mean(rating),
+            num_participants = length(rating))
 ```
 
 ## In this first draw, was it significant with N=9 or N=24 per group?
@@ -112,7 +116,9 @@ samps <- tibble(sim = 1:1000) |>
 OK, copy this but now change it so that you 48 participants per experiment
 
 ```{r}
-samps_highn <-...
+samps_highn <- tibble(sim = 1:1000) |>
+  mutate(data = map(sim, \(i) make_tea_data(n_total = 48, delta = 1.5))) |>
+  unnest(cols = data)
 ```
 
 ### Summarize both of these simulations
@@ -121,16 +127,16 @@ Here, we take these simulated experiments, group by `sim` and `condition`, and s
 
 Then, for each experiment, calculate the mean difference between the milk first vs. tea first conditions.
 
-To do: Comment what each line of code is doing to check your understanding, and talk to a partner about it.
+**To do**: Comment what each line of code is doing to check your understanding, and talk to a partner about it.
 
 Bonus: Figure out a way to do this that is better than I what I did (some mix of base R and tidyverse, I'm sure there's a tidyverse only way)
 
 ```{r}
 tea_data_summary <- samps |>
-  group_by(sim, condition) |> 
-  summarise(mean_rating = mean(rating)) |> 
-  group_by(sim) |> 
-  summarise(delta = mean_rating[condition == "milk first"] -
+  group_by(sim, condition) |> # compressing samples in terms of simulation index and conditions
+  summarise(mean_rating = mean(rating)) |> # calculating the mean of ratings for each sim index * condition
+  group_by(sim) |> # compressing samples in terms of simulation index
+  summarise(delta = mean_rating[condition == "milk first"] - # calculating ATE of the tea/milk order for each sim index. 
               mean_rating[condition == "tea first"])
 ```
 
@@ -148,15 +154,17 @@ tea_data_highn_summary <- samps_highn |>
 Let's make a plot to plot the differences in ratings across conditions for the low-n condition. You'll need to use ggplot or `hist`
 
 ```{r}
-
+hist(tea_data_summary$delta, breaks = 10)
 ```
 
 ### Plot difference for higher-n
 
-To do: What's different about this distribution vs the one we just plotted?
+**To do:** What's different about this distribution vs the one we just plotted?
+
+> When the sample size becomes larger, the histogram becomes more similar to normal distribution.
 
 ```{r}
-
+hist(tea_data_highn_summary$delta, breaks = 10)
 ```
 
 **Bonus** What happens if you run it again, but this time try changing the variance / mean of the effect when you change the `delta` and `sigma` values in the data simulation.
@@ -175,13 +183,22 @@ First, do the same thing as you did before - simulating 1000 experiments -- but 
 
 ```{r}
 # Simulate the null distribution
-  
+samps_highn_perm_sim <- tibble(sim = 1:1000) |>
+  mutate(data = map(sim, \(i) make_tea_data(n_total = 48, delta = 0.0))) |>
+  unnest(cols = data)
+
+tea_data_highn_perm_sim_summary <- samps_highn_perm_sim |>
+  group_by(sim, condition) |> 
+  summarise(mean_rating = mean(rating)) |> 
+  group_by(sim) |> 
+  summarise(delta = mean_rating[condition == "milk first"] -
+              mean_rating[condition == "tea first"])
 ```
 
 Visualize what this null distribution actually looks like.
 
 ```{r}
-
+hist(tea_data_highn_perm_sim_summary$delta, breaks = 50)
 ```
 
 ### Method 2: Shuffling
@@ -196,7 +213,9 @@ tea_data_highn_shuffled <- samps_highn %>%
   mutate(condition_shuffled = sample(condition)) # shuffle the condition labels, handy function here.
 ```
 
-To do: check you understanding -- what is "sim" here?
+**To do:** check you understanding -- what is "sim" here?
+
+> "sim" indicates the index of the experiment (i.e., from 1 to 1,000).
 
 ```{r}
 tea_data_highn_shuffled_summary <- tea_data_highn_shuffled %>%
@@ -211,10 +230,12 @@ tea_data_highn_shuffled_summary <- tea_data_highn_shuffled_summary %>%
               mean_rating[condition_shuffled == "tea first"])
 ```
 
-To do: what does this histogram look like and why?
+**To do:** what does this histogram look like and why?
+
+> This histogram describes normal distribution of null effects (i.e., ATE in the order of tea/milk when the condition labels were randomly shuffled). For this reason, the mean value of the null distribution is positioned close to zero.
 
 ```{R}
-hist(tea_data_highn_shuffled_summary$delta) #what does this histogram look like?
+hist(tea_data_highn_shuffled_summary$delta, breaks = 50) #what does this histogram look like?
 ```
 
 ### Visualizing what happens when we shuffle
@@ -224,7 +245,7 @@ OK, now see what happens to our raw data -- this is just from one simulation The
 The color refers to the ORIGINAL condition The x-axis refers to the SHUFFLED condition
 
 ```{r}
-ggplot(data = tea_data_highn_shuffled %>% filter(sim==3),  # can change the actual simulation number here
+ggplot(data = tea_data_highn_shuffled %>% filter(sim == 1000),  # can change the actual simulation number here
        mapping = aes(x = condition_shuffled, y = rating))+
   geom_point(mapping = aes(color = condition), # color
              alpha=.8,
@@ -289,8 +310,8 @@ You can also see this if you plot the distributions of the null vs empirical sim
 
 ```{r}
 ggplot(data=tea_data_highn_shuffled_summary, aes(x=delta)) +
-  geom_histogram(alpha=.4, bins=20, color='blue', fill='blue') +
-  geom_histogram(alpha=.8, bins=20, data=tea_data_highn_summary)
+  geom_histogram(alpha=.4, bins=50, color='blue', fill='blue') +
+  geom_histogram(alpha=.8, bins=50, data=tea_data_highn_summary)
 ```
 
 # Part 3: Calculating confidence intervals
@@ -400,22 +421,27 @@ ggplot(data = tea_data_highn, aes(x=condition, y=rating, col=condition))  +
 
 ```
 
-To do: What does each dot represent? What does the range represent in each graph? What does the confidence interval indicate? What does the SE indicate?
+**To do:** What does each dot represent? What does the range represent in each graph? What does the confidence interval indicate? What does the SE indicate?
 
-To do: how does this change when you use the low-n experiment?
+> Each dot represents participant's rating score and their range indicate the \[min, max\] value of observed ratings.
 
-To do: Find the shortcut ggplot function so you don't have to calculate these by hand ever again :)
+**To do:** how does this change when you use the low-n experiment?
+
+> The 95% CI gets longer when the sample size becomes smaller.
+
+**To do:** Find the shortcut ggplot function so you don't have to calculate these by hand ever again :)
+
+> 'geom_errorbar()' might be helpful in this case.
 
 # Part 4: Simulating p-values across multiple experiments
 
-To do: Comment what the lines of code are doing 
-### When there is no actual effect
+To do: Comment what the lines of code are doing \### When there is no actual effect
 
 ```{r}
 all_results=tibble() 
 
 for (this_sim in 1:1000) {
-  this_experiment = null_model %>%
+  this_experiment = samps_highn_perm_sim %>%
     filter(sim==this_sim) 
   
   tea_ratings <- filter(this_experiment, condition == "tea first")$rating
@@ -429,23 +455,28 @@ for (this_sim in 1:1000) {
 }
 ```
 
-To do: Look at the distribution of p-values (hint: in all_results\$pvalue)
+**To do:** Look at the distribution of p-values (hint: in all_results\$pvalue)
 
-Make a histogram
+```{r}
+
+hist(all_results$pvalue, breaks = 10)
+```
 
 What is the distribution of p-values when the null is true?
+
+> uniform distribution? (totally random?)
 
 Calculate the proportion of p-values that are less than .05 What was our false positive rate?
 
 ```{r}
 # you'll need all_results$pvalue
-hist(all_results$pvalue)
+sum(all_results$pvalue < 0.05)/length(all_results$pvalue)
 ```
 
 ### Now for an experiment when there is actually an effect
 
 ```{r}
-all_results_high_n=tibble() 
+all_results_high_n = tibble() 
 
 for (this_sim in 1:500) {
   this_experiment = samps_highn %>%
@@ -463,6 +494,10 @@ for (this_sim in 1:500) {
 ```
 
 How often did we fail to reject the null hypothesis? When was our p-value greater than p=.05? What does the distribution of p-values look like?
+
+```{r}
+hist(all_results_high_n$pvalue, breaks = 10)
+```
 
 \`\`\`{R} \# you'll need all_results_high_n\$pvalue \`\`\`\`
 

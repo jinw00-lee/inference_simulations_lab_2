@@ -33,6 +33,7 @@ library(ggthemes) # optional, but nice
 # Part 1: Simulating experimental data
 
 ## Define the simulation function
+
 This makes "tea data", a tibble (dataframe) where there are a certain number of people in each condition (default = 48, i.e., n_total, with n_total/2 in each half)
 
 The averages of the two conditions are separated by a known effect ("delta") with some variance ("sigma"). You can change these around since we're simulating data!
@@ -174,8 +175,8 @@ What happens if you vary the random seed?
 Visualizing the null distribution. How can we actually visualize the NULL hypothesis and distribution? It's a little tricky, but we can rely on simulation to help us.
 
 ### Method 1: Simulation
-First, do the same thing as you did before - simulating 1000 experiments -- but NOW simulate no differences between conditions. Remember, it's the null model because DELTA (i.e., differences in conditions) is ZERO. Keep these dataframes - we will use them later for estimating p-values
 
+First, do the same thing as you did before - simulating 1000 experiments -- but NOW simulate no differences between conditions. Remember, it's the null model because DELTA (i.e., differences in conditions) is ZERO. Keep these dataframes - we will use them later for estimating p-values
 
 ```{r}
 null_model <- tibble(sim = 1:1000) |>
@@ -271,6 +272,7 @@ difference_actual = tea_data_highn %>%  # in ONE experiment
 Plot the distribution of the differences across all of our shuffled iterations
 
 And in red -- is the numerical value from when there was an effect (because we simulated it that way)
+
 ```{R}
 
 ggplot(data = tea_data_highn_shuffled_summary, aes(x=delta)) +
@@ -316,7 +318,6 @@ Here, I want to show you how you WOULD calculate a CI by hand. In practice, I ne
 
 ### Get the data
 
-
 Taking the high_n experiment for now
 
 ```{r}
@@ -335,8 +336,8 @@ milk_ratings <- filter(tea_dataset, condition == "milk first")$rating
 ```
 
 ## Calculate a CI on the effect (difference between conditions)
-First we're going to calculate a CI by hand.
 
+First we're going to calculate a CI by hand.
 
 ```{R}
 n_tea <- length(tea_ratings)
@@ -367,8 +368,8 @@ df = num_observations-2 # for two sample t.test
 tea_ci_lower_ttest <- delta_hat - tea_se * qt(0.975,df)
 tea_ci_upper_ttest <- delta_hat + tea_se * qt(0.975,df)
 ```
-The above code does this by hand - but it's to show you what this function is doing under the hood.
 
+The above code does this by hand - but it's to show you what this function is doing under the hood.
 
 ```{r}
 # Now the calculated CIs match those in the t-test outputs!
